@@ -16,7 +16,7 @@
  *
  ******************************************************************************/
 #include <android-base/stringprintf.h>
-#include <android/hardware/nfc/1.0/INfc.h>
+#include <android/hardware/nfc/1.1/INfc.h>
 #include <base/command_line.h>
 #include <base/logging.h>
 #include <cutils/properties.h>
@@ -40,7 +40,8 @@ using android::hardware::ProcessState;
 using android::hardware::Return;
 using android::hardware::Void;
 using android::hardware::nfc::V1_0::INfc;
-using android::hardware::nfc::V1_0::INfcClientCallback;
+using INfcV1_1 = android::hardware::nfc::V1_1::INfc;
+using android::hardware::nfc::V1_1::INfcClientCallback;
 using android::hardware::hidl_vec;
 
 extern bool nfc_debug_enabled;
@@ -56,6 +57,7 @@ tHAL_NFC_DATA_CBACK* NfcAdaptation::mHalDataCallback = NULL;
 ThreadCondVar NfcAdaptation::mHalOpenCompletedEvent;
 ThreadCondVar NfcAdaptation::mHalCloseCompletedEvent;
 sp<INfc> NfcAdaptation::mHal;
+sp<INfcV1_1> NfcAdaptation::mHal_1_1;
 INfcClientCallback* NfcAdaptation::mCallback;
 
 bool nfc_debug_enabled = false;
@@ -103,6 +105,12 @@ class NfcClientCallback : public INfcClientCallback {
     mDataCallback = dataCallback;
   };
   virtual ~NfcClientCallback() = default;
+  Return<void> sendEvent_1_1(
+      ::android::hardware::nfc::V1_1::NfcEvent event,
+      ::android::hardware::nfc::V1_0::NfcStatus event_status) override {
+    mEventCallback((uint8_t)event, (tHAL_NFC_STATUS)event_status);
+    return Void();
+  };
   Return<void> sendEvent(
       ::android::hardware::nfc::V1_0::NfcEvent event,
       ::android::hardware::nfc::V1_0::NfcStatus event_status) override {
@@ -157,7 +165,10 @@ NfcAdaptation::~NfcAdaptation() { mpInstance = NULL; }
 NfcAdaptation& NfcAdaptation::GetInstance() {
   AutoThreadMutex a(sLock);
 
-  if (!mpInstance) mpInstance = new NfcAdaptation;
+  if (!mpInstance) {
+    mpInstance = new NfcAdaptation;
+    mpInstance->InitializeHalDeviceContext();
+  }
   return *mpInstance;
 }
 
@@ -264,9 +275,6 @@ void NfcAdaptation::Initialize() {
     mCondVar.wait();
   }
 
-  mHalCallback = NULL;
-  memset(&mHalEntryFuncs, 0, sizeof(mHalEntryFuncs));
-  InitializeHalDeviceContext();
   debug_nfcsnoop_init();
   DLOG_IF(INFO, nfc_debug_enabled) << StringPrintf("%s: exit", func);
 }
@@ -289,11 +297,20 @@ void NfcAdaptation::Finalize() {
 
   NfcConfig::clear();
 
-  mCallback = NULL;
-  memset(&mHalEntryFuncs, 0, sizeof(mHalEntryFuncs));
-
   DLOG_IF(INFO, nfc_debug_enabled) << StringPrintf("%s: exit", func);
   delete this;
+}
+
+void NfcAdaptation::FactoryReset() {
+  if (mHal_1_1 != nullptr) {
+    mHal_1_1->factoryReset();
+  }
+}
+
+void NfcAdaptation::DeviceShutdown() {
+  if (mHal_1_1 != nullptr) {
+    mHal_1_1->closeForPowerOffCase();
+  }
 }
 
 /*******************************************************************************
@@ -385,7 +402,6 @@ tHAL_NFC_ENTRY* NfcAdaptation::GetHalEntryFuncs() { return &mHalEntryFuncs; }
 *******************************************************************************/
 void NfcAdaptation::InitializeHalDeviceContext() {
   const char* func = "NfcAdaptation::InitializeHalDeviceContext";
-  DLOG_IF(INFO, nfc_debug_enabled) << StringPrintf("%s: enter", func);
 
   mHalEntryFuncs.initialize = HalInitialize;
   mHalEntryFuncs.terminate = HalTerminate;
@@ -398,12 +414,14 @@ void NfcAdaptation::InitializeHalDeviceContext() {
   mHalEntryFuncs.power_cycle = HalPowerCycle;
   mHalEntryFuncs.get_max_ee = HalGetMaxNfcee;
   LOG(INFO) << StringPrintf("%s: INfc::getService()", func);
-  mHal = INfc::getService();
+  mHal = mHal_1_1 = INfcV1_1::getService();
+  if (mHal_1_1 == nullptr) {
+    mHal = INfc::getService();
+  }
   LOG_FATAL_IF(mHal == nullptr, "Failed to retrieve the NFC HAL!");
   LOG(INFO) << StringPrintf("%s: INfc::getService() returned %p (%s)", func,
                             mHal.get(),
                             (mHal->isRemote() ? "remote" : "local"));
-  DLOG_IF(INFO, nfc_debug_enabled) << StringPrintf("%s: exit", func);
 }
 
 /*******************************************************************************
@@ -450,7 +468,11 @@ void NfcAdaptation::HalOpen(tHAL_NFC_CBACK* p_hal_cback,
   const char* func = "NfcAdaptation::HalOpen";
   DLOG_IF(INFO, nfc_debug_enabled) << StringPrintf("%s", func);
   mCallback = new NfcClientCallback(p_hal_cback, p_data_cback);
-  mHal->open(mCallback);
+  if (mHal_1_1 != nullptr) {
+    mHal_1_1->open_1_1(mCallback);
+  } else {
+    mHal->open(mCallback);
+  }
 }
 
 /*******************************************************************************
