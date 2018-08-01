@@ -33,7 +33,6 @@
 #include "nfa_hci_defs.h"
 #include "nfa_hci_int.h"
 #include "nfa_nv_co.h"
-#include "trace_api.h"
 
 using android::base::StringPrintf;
 
@@ -673,8 +672,8 @@ static void nfa_hci_sys_disable(void) {
       if (NFC_GetNCIVersion() == NCI_VERSION_1_0) {
         nfa_hciu_send_to_all_apps(NFA_HCI_EXIT_EVT, &evt_data);
         NFC_ConnClose(nfa_hci_cb.conn_id);
+        return;
       }
-      return;
     }
     nfa_hci_cb.conn_id = 0;
   }
@@ -741,8 +740,6 @@ static void nfa_hci_conn_cback(uint8_t conn_id, tNFC_CONN_EVT event,
 
   p = (uint8_t*)(p_pkt + 1) + p_pkt->offset;
   pkt_len = p_pkt->len;
-
-  DispHcp(p, pkt_len, true);
 
   chaining_bit = ((*p) >> 0x07) & 0x01;
   pipe = (*p++) & 0x7F;
