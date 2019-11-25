@@ -19,6 +19,15 @@ enum {
 
 static void rw_cback(tRW_EVENT event, tRW_DATA* p_rw_data) {
   FUZZLOG(MODULE_NAME "rw_cback: event=0x%02x, p_rw_data=%p", event, p_rw_data);
+
+  if (event == RW_T1T_RAW_FRAME_EVT || event == RW_T1T_RID_EVT ||
+      event == RW_T1T_RALL_CPLT_EVT || event == RW_T1T_READ_CPLT_EVT ||
+      event == RW_T1T_RSEG_CPLT_EVT || event == RW_T1T_READ8_CPLT_EVT) {
+    if (p_rw_data->data.p_data) {
+      GKI_freebuf(p_rw_data->data.p_data);
+      p_rw_data->data.p_data = nullptr;
+    }
+  }
 }
 
 #define TEST_NFCID_VALUE \
@@ -141,6 +150,17 @@ static bool Fuzz_Init(Fuzz_Context& ctx) {
   return result;
 }
 
+static void Fuzz_Deinit(Fuzz_Context& /*ctx*/) {
+  if (rf_cback) {
+    tNFC_CONN conn = {.data = {
+                          .status = NFC_STATUS_OK,
+                          .p_data = nullptr,
+                      }};
+
+    rf_cback(NFC_RF_CONN_ID, NFC_DEACTIVATE_CEVT, &conn);
+  }
+}
+
 static void Fuzz_Run(Fuzz_Context& ctx) {
   for (auto it = ctx.Data.cbegin(); it != ctx.Data.cend(); ++it) {
     NFC_HDR* p_msg;
@@ -177,4 +197,5 @@ void Type1_Fuzz(uint8_t SubType, const std::vector<bytes_t>& Data) {
   if (Fuzz_Init(ctx)) {
     Fuzz_Run(ctx);
   }
+  Fuzz_Deinit(ctx);
 }
