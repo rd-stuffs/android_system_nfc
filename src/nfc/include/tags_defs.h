@@ -660,17 +660,17 @@ typedef uint8_t tT3T_POLL_RC;
 
 /* ONS, product version (IC manufacturer code) */
 /* IC Reference for N36RW02:  00011010(b), blockSize: 4, numberBlocks: 0x40 */
-#define I93_IC_REF_ONS_N36RW02 0x1A
+#define I93_IC_REF_ONS_N36RW02  0x1A
 /* IC Reference for N24RF04:  00101010(b), blockSize: 4, numberBlocks: 0x80 */
-#define I93_IC_REF_ONS_N24RF04 0x2A
+#define I93_IC_REF_ONS_N24RF04  0x2A
 /* IC Reference for N24RF04E: 00101110(b), blockSize: 4, numberBlocks: 0x80 */
 #define I93_IC_REF_ONS_N24RF04E 0x2E
 /* IC Reference for N24RF16:  01001010(b), blockSize: 4, numberBlocks: 0x200 */
-#define I93_IC_REF_ONS_N24RF16 0x4A
+#define I93_IC_REF_ONS_N24RF16  0x4A
 /* IC Reference for N24RF16E: 01001110(b), blockSize: 4, numberBlocks: 0x200 */
 #define I93_IC_REF_ONS_N24RF16E 0x4E
 /* IC Reference for N24RF64:  01101010(b), blockSize: 4, numberBlocks: 0x800 */
-#define I93_IC_REF_ONS_N24RF64 0x6A
+#define I93_IC_REF_ONS_N24RF64  0x6A
 /* IC Reference for N24RF64E: 01101110(b), blockSize: 4, numberBlocks: 0x800 */
 #define I93_IC_REF_ONS_N24RF64E 0x6E
 
@@ -680,4 +680,4 @@ typedef uint8_t tT3T_POLL_RC;
 #define I93_ONS_BLOCKS_PER_SECTOR 32
 #define I93_ONS_MAX_BLOCKS_PER_READ 32
 
-#endif /* TAGS_DEFS_H */
+#endif /* TAGS_DEFS_H */ 

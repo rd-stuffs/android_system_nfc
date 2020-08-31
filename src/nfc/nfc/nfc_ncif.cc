@@ -1426,16 +1426,26 @@ void nfc_ncif_proc_deactivate(uint8_t status, uint8_t deact_type, bool is_ntf) {
 void nfc_ncif_proc_ee_action(uint8_t* p, uint16_t plen) {
   tNFC_EE_ACTION_REVT evt_data;
   tNFC_RESPONSE_CBACK* p_cback = nfc_cb.p_resp_cback;
+  tNFC_RESPONSE nfc_response;
   uint8_t data_len, ulen, tag, *p_data;
   uint8_t max_len;
 
   if (p_cback) {
     memset(&evt_data.act_data, 0, sizeof(tNFC_ACTION_DATA));
+    if (plen > 3) {
+      plen -= 3;
+    } else {
+      evt_data.status = NFC_STATUS_FAILED;
+      evt_data.nfcee_id = 0;
+      nfc_response.ee_action = evt_data;
+      (*p_cback)(NFC_EE_ACTION_REVT, &nfc_response);
+      android_errorWriteLog(0x534e4554, "157649306");
+      return;
+    }
     evt_data.status = NFC_STATUS_OK;
     evt_data.nfcee_id = *p++;
     evt_data.act_data.trigger = *p++;
     data_len = *p++;
-    if (plen >= 3) plen -= 3;
     if (data_len > plen) data_len = (uint8_t)plen;
 
     switch (evt_data.act_data.trigger) {
@@ -1478,7 +1488,6 @@ void nfc_ncif_proc_ee_action(uint8_t* p, uint16_t plen) {
         }
         break;
     }
-    tNFC_RESPONSE nfc_response;
     nfc_response.ee_action = evt_data;
     (*p_cback)(NFC_EE_ACTION_REVT, &nfc_response);
   }
@@ -1865,13 +1874,13 @@ void nfc_data_event(tNFC_CONN_CB* p_cb) {
 
       data_cevt.p_data = p_evt;
       /* adjust payload, if needed */
-      if (p_cb->conn_id == NFC_RF_CONN_ID) {
+      if (p_cb->conn_id == NFC_RF_CONN_ID && p_evt->len) {
         /* if NCI_PROTOCOL_T1T/NCI_PROTOCOL_T2T/NCI_PROTOCOL_T3T, the status
          * byte needs to be removed
          */
         if ((p_cb->act_protocol >= NCI_PROTOCOL_T1T) &&
             (p_cb->act_protocol <= NCI_PROTOCOL_T3T)) {
-          if (p_evt->len) p_evt->len--;
+          p_evt->len--;
           p = (uint8_t*)(p_evt + 1);
           data_cevt.status = *(p + p_evt->offset + p_evt->len);
           if ((NFC_GetNCIVersion() == NCI_VERSION_2_0) &&
@@ -1888,7 +1897,7 @@ void nfc_data_event(tNFC_CONN_CB* p_cb) {
         }
         if ((NFC_GetNCIVersion() == NCI_VERSION_2_0) &&
             (p_cb->act_protocol == NCI_PROTOCOL_T5T)) {
-          if (p_evt->len) p_evt->len--;
+          p_evt->len--;
           p = (uint8_t*)(p_evt + 1);
           data_cevt.status = *(p + p_evt->offset + p_evt->len);
         }
