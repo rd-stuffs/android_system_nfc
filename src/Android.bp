@@ -18,7 +18,6 @@ cc_library_shared {
         "libcutils",
         "liblog",
         "libdl",
-        "libhardware",
         "libz",
         "libchrome",
         "libbase",
@@ -30,6 +29,9 @@ cc_library_shared {
         "android.hardware.nfc@1.0",
         "android.hardware.nfc@1.1",
         "android.hardware.nfc@1.2",
+        // Add for AIDL
+        "android.hardware.nfc-V1-ndk",
+        "libbinder_ndk",
     ],
     static_libs: [
         "libnfcutils",
@@ -128,6 +130,7 @@ cc_fuzz {
     srcs: [
         "nfc/nci/*.cc",
         "nfc/nfc/*.cc",
+        "adaptation/debug_lmrt.cc",
         "gki/common/*.cc",
         "gki/ulinux/*.cc",
         "fuzzers/*.cc",
@@ -206,6 +209,7 @@ cc_fuzz {
         "fuzzers/integration/*.cc",
         "fuzzers/integration/fakes/*.cc",
         "gki/common/gki_buffer.cc",
+        "adaptation/debug_lmrt.cc",
         "nfa/ce/*.cc",
         "nfa/dm/*.cc",
         "nfa/ee/*.cc",
